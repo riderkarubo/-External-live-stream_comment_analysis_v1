@@ -109,6 +109,14 @@ COMPANIES = {
         "official_user_type": "moderator",
         "official_guest_id": None,
         "official_username": None
+    },
+    "Samsung Live Shop": {
+        "name": "Samsung Live Shop",
+        "chat_attributes": CHAT_ATTRIBUTES,
+        "chat_sentiments": CHAT_SENTIMENTS,
+        "official_user_type": "moderator",
+        "official_guest_id": None,
+        "official_username": ["Samsung公式"]
     }
 }
 

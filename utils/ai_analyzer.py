@@ -201,11 +201,15 @@ def analyze_comment_attribute(comment_text: str, username: str, guest_id=None, u
         except (ValueError, AttributeError, TypeError):
             pass  # user_idが不正な場合は通常の処理に進む
     
-    # 後方互換性のため、guest_idによる判定も残す（将来的に削除予定）
+    # guest_idによる判定（空白の場合も公式コメントとして判定）
     try:
-        if guest_id:
+        if guest_id is None or (isinstance(guest_id, float) and pd.isna(guest_id)):
+            # guest_idがNoneまたはNaNの場合は公式コメントとして判定
+            return "公式コメント"
+        elif guest_id:
             guest_id_str = str(guest_id).strip()
-            if guest_id_str == OFFICIAL_GUEST_ID:
+            if guest_id_str == "" or guest_id_str == OFFICIAL_GUEST_ID:
+                # guest_idが空文字列または公式IDの場合は公式コメントとして判定
                 return "公式コメント"
     except (ValueError, AttributeError):
         pass  # guest_idが不正な場合は通常の処理に進む
@@ -506,12 +510,16 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
         except (ValueError, AttributeError, TypeError):
             pass  # user_idが不正な場合は通常の処理に進む
     
-    # 後方互換性のため、guest_idによる判定も残す（将来的に削除予定）
+    # guest_idによる判定（空白の場合も公式コメントとして判定）
     try:
-        if guest_id:
+        if guest_id is None or (isinstance(guest_id, float) and pd.isna(guest_id)):
+            # guest_idがNoneまたはNaNの場合は公式コメントとして判定
+            sentiment = analyze_comment_sentiment(comment_text)
+            return ("公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+        elif guest_id:
             guest_id_str = str(guest_id).strip()
-            if guest_id_str == OFFICIAL_GUEST_ID:
-                # 感情だけ分析（トークン使用量は0として返す）
+            if guest_id_str == "" or guest_id_str == OFFICIAL_GUEST_ID:
+                # guest_idが空文字列または公式IDの場合は公式コメントとして判定
                 sentiment = analyze_comment_sentiment(comment_text)
                 return ("公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
     except (ValueError, AttributeError):

@@ -213,32 +213,7 @@ def main():
         index=0
     )
 
-    # 企業選択（サイドバー）
-    st.sidebar.title("企業選択")
-    company_names = list(COMPANIES.keys())
-    if "selected_company" not in st.session_state:
-        st.session_state.selected_company = DEFAULT_COMPANY
-    
-    selected_company = st.sidebar.selectbox(
-        "企業を選択してください",
-        company_names,
-        index=company_names.index(st.session_state.selected_company) if st.session_state.selected_company in company_names else 0
-    )
-    
-    # 企業選択が変更された場合、セッションステートを更新
-    if selected_company != st.session_state.selected_company:
-        st.session_state.selected_company = selected_company
-        # 分析結果をクリア（企業が変わったら再分析が必要）
-        if "analysis_complete" in st.session_state:
-            st.session_state.analysis_complete = False
-        if "processed_data" in st.session_state:
-            st.session_state.processed_data = None
-    
-    # 現在の企業設定を取得
-    company_config = get_company_config(selected_company)
-
     st.title("ライブ配信チャット分析ツール")
-    st.markdown(f"**企業名**: {company_config['name']}")
 
     # APIキーが設定されていない場合の警告
     if not has_api_key:
@@ -260,6 +235,8 @@ def show_comment_analysis_page():
     """コメント分析機能のページを表示"""
     
     # セッションステートの初期化
+    if "selected_company" not in st.session_state:
+        st.session_state.selected_company = DEFAULT_COMPANY
     if "processed_data" not in st.session_state:
         st.session_state.processed_data = None
     if "analysis_complete" not in st.session_state:
@@ -351,9 +328,33 @@ def show_comment_analysis_page():
             st.error(f"エラー: {str(e)}")
             return
     
+    # 企業選択（CSVアップロードの後）
+    if st.session_state.processed_data is not None:
+        st.header("2. 企業選択")
+        company_names = list(COMPANIES.keys())
+        if "selected_company" not in st.session_state:
+            st.session_state.selected_company = DEFAULT_COMPANY
+        
+        selected_company = st.selectbox(
+            "企業を選択してください",
+            company_names,
+            index=company_names.index(st.session_state.selected_company) if st.session_state.selected_company in company_names else 0
+        )
+        
+        # 企業選択が変更された場合、セッションステートを更新
+        if selected_company != st.session_state.selected_company:
+            st.session_state.selected_company = selected_company
+            # 分析結果をクリア（企業が変わったら再分析が必要）
+            if "analysis_complete" in st.session_state:
+                st.session_state.analysis_complete = False
+        
+        # 現在の企業設定を取得
+        company_config = get_company_config(selected_company)
+        st.info(f"**選択中の企業**: {company_config['name']}")
+    
     # AI分析
     if st.session_state.processed_data is not None and not st.session_state.analysis_complete:
-        st.header("2. AI分析")
+        st.header("3. AI分析")
         
         df = st.session_state.processed_data.copy()
         
@@ -523,8 +524,7 @@ def show_comment_analysis_page():
             
             try:
                 # AI分析実行（統合プロンプト使用：50%高速化）
-                with st.spinner("AI分析を実行中です。しばらくお待ちください..."):
-                    analysis_result = analyze_all_comments(df, update_progress, save_intermediate_results, check_cancel)
+                analysis_result = analyze_all_comments(df, update_progress, save_intermediate_results, check_cancel)
                 
                 # 分析結果からDataFrameとトークン使用量情報を取得
                 if isinstance(analysis_result, dict):
@@ -659,7 +659,7 @@ def show_comment_analysis_page():
     
     # データ出力
     if st.session_state.analysis_complete and st.session_state.processed_data is not None:
-        st.header("3. データ出力")
+        st.header("4. データ出力")
         
         # 統計情報をセッションステートから取得（なければ計算）
         if st.session_state.stats_data is None:
