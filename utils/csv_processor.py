@@ -150,8 +150,8 @@ def extract_questions(df: pd.DataFrame, attribute_column: str = "チャットの
         質問コメントのみのデータフレーム（公式コメントは除外）
     """
     question_attributes = [
-        "商品に対する質問",
-        "出演者に対する質問"
+        "00商品への質問",
+        "04出演者関連"
     ]
     
     # 質問コメントを抽出

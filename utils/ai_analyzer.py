@@ -19,7 +19,8 @@ from config import (
 from prompts.analysis_prompts import (
     get_attribute_analysis_prompt,
     get_sentiment_analysis_prompt,
-    get_combined_analysis_prompt
+    get_combined_analysis_prompt,
+    get_executive_summary_prompt
 )
 
 
@@ -188,7 +189,7 @@ def analyze_comment_attribute(comment_text: str, username: str, guest_id=None, u
     
     # user_typeが"moderator"の場合は自動的に公式コメントとして判定
     if user_type and str(user_type).strip().lower() == "moderator":
-        return "公式コメント"
+        return "08公式コメント"
     
     # user_idが存在し、値が空でない場合は公式コメントとして判定
     if user_id is not None:
@@ -197,7 +198,7 @@ def analyze_comment_attribute(comment_text: str, username: str, guest_id=None, u
             if pd.notna(user_id):
                 user_id_str = str(user_id).strip()
                 if user_id_str:  # 空文字列でない
-                    return "公式コメント"
+                    return "08公式コメント"
         except (ValueError, AttributeError, TypeError):
             pass  # user_idが不正な場合は通常の処理に進む
     
@@ -205,18 +206,18 @@ def analyze_comment_attribute(comment_text: str, username: str, guest_id=None, u
     try:
         if guest_id is None or (isinstance(guest_id, float) and pd.isna(guest_id)):
             # guest_idがNoneまたはNaNの場合は公式コメントとして判定
-            return "公式コメント"
+            return "08公式コメント"
         elif guest_id:
             guest_id_str = str(guest_id).strip()
             if guest_id_str == "" or guest_id_str == OFFICIAL_GUEST_ID:
                 # guest_idが空文字列または公式IDの場合は公式コメントとして判定
-                return "公式コメント"
+                return "08公式コメント"
     except (ValueError, AttributeError):
         pass  # guest_idが不正な場合は通常の処理に進む
     
     # 企業設定で定義された公式ユーザー名の場合は公式コメントとして判定
     if _is_official_username(username):
-        return "公式コメント"
+        return "08公式コメント"
 
     prompt = get_attribute_analysis_prompt(comment_text, username)
 
@@ -326,12 +327,12 @@ def analyze_comment_attribute(comment_text: str, username: str, guest_id=None, u
             print(f"DEBUG [属性分析] 利用可能なカテゴリ: {CHAT_ATTRIBUTES}", file=sys.stderr)
         
         # 最終的な検証：返す値が有効なカテゴリに含まれているか確認
-        final_attribute = "絵文字のみ"
+        final_attribute = "05絵文字のみ"
         if final_attribute not in CHAT_ATTRIBUTES:
             import sys
             if analyze_comment_attribute._debug_count <= 10:
                 print("DEBUG [属性分析] 警告: デフォルト値が無効です。最初のカテゴリを使用します。", file=sys.stderr)
-            final_attribute = CHAT_ATTRIBUTES[0] if CHAT_ATTRIBUTES else "絵文字のみ"
+            final_attribute = CHAT_ATTRIBUTES[0] if CHAT_ATTRIBUTES else "05絵文字のみ"
         
         return final_attribute
         
@@ -340,7 +341,7 @@ def analyze_comment_attribute(comment_text: str, username: str, guest_id=None, u
         print(f"属性分析エラー: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)
-        return "絵文字のみ"
+        return "05絵文字のみ"
 
 
 def analyze_comment_sentiment(comment_text: str) -> str:
@@ -495,7 +496,7 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
     if user_type and str(user_type).strip().lower() == "moderator":
         # 感情だけ分析
         sentiment = analyze_comment_sentiment(comment_text)
-        return ("公式コメント", sentiment)
+        return ("08公式コメント", sentiment)
     
     # user_idが存在し、値が空でない場合は公式コメントとして判定
     if user_id is not None:
@@ -506,7 +507,7 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
                 if user_id_str:  # 空文字列でない
                     # 感情だけ分析（トークン使用量は0として返す）
                     sentiment = analyze_comment_sentiment(comment_text)
-                    return ("公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+                    return ("08公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
         except (ValueError, AttributeError, TypeError):
             pass  # user_idが不正な場合は通常の処理に進む
     
@@ -515,13 +516,13 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
         if guest_id is None or (isinstance(guest_id, float) and pd.isna(guest_id)):
             # guest_idがNoneまたはNaNの場合は公式コメントとして判定
             sentiment = analyze_comment_sentiment(comment_text)
-            return ("公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+            return ("08公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
         elif guest_id:
             guest_id_str = str(guest_id).strip()
             if guest_id_str == "" or guest_id_str == OFFICIAL_GUEST_ID:
                 # guest_idが空文字列または公式IDの場合は公式コメントとして判定
                 sentiment = analyze_comment_sentiment(comment_text)
-                return ("公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+                return ("08公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
     except (ValueError, AttributeError):
         pass  # guest_idが不正な場合は通常の処理に進む
     
@@ -529,7 +530,7 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
     if _is_official_username(username):
         # 感情だけ分析（トークン使用量は0として返す）
         sentiment = analyze_comment_sentiment(comment_text)
-        return ("公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+        return ("08公式コメント", sentiment, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
     
     prompt = get_combined_analysis_prompt(comment_text, username)
 
@@ -639,12 +640,12 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
                             # 属性を検証
                             for attr in CHAT_ATTRIBUTES:
                                 if attr.lower() == attr_text_lower or attr in attr_text or attr_text in attr:
-                                    # 「公式コメント」が返された場合、usernameをチェック
-                                    if attr == "公式コメント":
+                                    # 「08公式コメント」が返された場合、usernameをチェック
+                                    if attr == "08公式コメント":
                                         if username == COMPANY_NAME:
-                                            attribute = "公式コメント"
+                                            attribute = "08公式コメント"
                                         else:
-                                            attribute = "絵文字のみ"
+                                            attribute = "05絵文字のみ"
                                     else:
                                         attribute = attr
                                     break
@@ -684,34 +685,34 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
                     attr_lower = attr.lower()
                     # 完全一致（大文字小文字を区別しない）
                     if attr_lower == response_lower or attr == response_cleaned:
-                        # 「公式コメント」が返された場合、usernameをチェック
-                        if attr == "公式コメント":
+                        # 「08公式コメント」が返された場合、usernameをチェック
+                        if attr == "08公式コメント":
                             if username == COMPANY_NAME:
-                                attribute = "公式コメント"
+                                attribute = "08公式コメント"
                             else:
-                                attribute = "絵文字のみ"
+                                attribute = "05絵文字のみ"
                         else:
                             attribute = attr
                         if attribute:
                             break
                     # 部分一致
                     if attr in response_cleaned or response_cleaned in attr:
-                        if attr == "公式コメント":
+                        if attr == "08公式コメント":
                             if username == COMPANY_NAME:
-                                attribute = "公式コメント"
+                                attribute = "08公式コメント"
                             else:
-                                attribute = "絵文字のみ"
+                                attribute = "05絵文字のみ"
                         else:
                             attribute = attr
                         if attribute:
                             break
                     # 大文字小文字を無視した部分一致
                     if attr_lower in response_lower or response_lower in attr_lower:
-                        if attr == "公式コメント":
+                        if attr == "08公式コメント":
                             if username == COMPANY_NAME:
-                                attribute = "公式コメント"
+                                attribute = "08公式コメント"
                             else:
-                                attribute = "絵文字のみ"
+                                attribute = "05絵文字のみ"
                         else:
                             attribute = attr
                         if attribute:
@@ -775,17 +776,17 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
             
             if matched_attribute:
                 attribute = matched_attribute
-                # 「公式コメント」の場合はusernameをチェック
-                if attribute == "公式コメント":
+                # 「08公式コメント」の場合はusernameをチェック
+                if attribute == "08公式コメント":
                     if username == COMPANY_NAME:
-                        attribute = "公式コメント"
+                        attribute = "08公式コメント"
                     else:
-                        attribute = "絵文字のみ"
+                        attribute = "05絵文字のみ"
             else:
                 # マッチしない場合のみデフォルト値を使用
                 if analyze_comment_combined._debug_count <= 10:
-                    print(f"DEBUG [統合分析] 再検索でもマッチせず、デフォルト値を使用: 絵文字のみ", file=sys.stderr)
-                attribute = "絵文字のみ"
+                    print(f"DEBUG [統合分析] 再検索でもマッチせず、デフォルト値を使用: 05絵文字のみ", file=sys.stderr)
+                attribute = "05絵文字のみ"
         
         if sentiment not in CHAT_SENTIMENTS:
             import sys
@@ -870,7 +871,7 @@ def analyze_comment_combined(comment_text: str, username: str, guest_id=None, us
                 # その他のエラーはデフォルト値を返す
                 print("DEBUG [統合分析] デフォルト値を返す", file=sys.stderr)
                 tokens_info = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-                return ("絵文字のみ", "どちらでもない", tokens_info)
+                return ("05絵文字のみ", "どちらでもない", tokens_info)
 
 
 def _analyze_single_comment(idx, row, rate_limit_monitor):
@@ -1085,4 +1086,126 @@ def analyze_all_comments(df, progress_callback=None, save_callback=None, check_c
             "total_tokens": total_tokens
         }
     }
+
+
+def generate_executive_summary(df) -> Dict[str, str]:
+    """
+    エグゼクティブサマリを生成
+    
+    Args:
+        df: 分析結果のデータフレーム
+        
+    Returns:
+        {"highlight": str, "lowlight": str, "improvement": str} の辞書
+    """
+    client = get_openai_client()
+    if not client:
+        raise ValueError("OpenAI APIキーが設定されていません。サイドバーからAPIキーを設定してください。")
+    
+    # コメントデータを文字列に変換（時間、ユーザー名、コメント、属性、感情を含む）
+    comments_data_lines = []
+    for idx, row in df.iterrows():
+        timestamp = row.get('inserted_at', row.get('配信時間', ''))
+        username = row.get('username', '')
+        comment = row.get('original_text', '')
+        attribute = row.get('チャットの属性', '')
+        sentiment = row.get('チャット感情', '')
+        
+        line_parts = []
+        if timestamp:
+            line_parts.append(f"[{timestamp}]")
+        if username:
+            line_parts.append(f"{username}:")
+        if comment:
+            line_parts.append(comment)
+        if attribute:
+            line_parts.append(f"(属性: {attribute})")
+        if sentiment:
+            line_parts.append(f"(感情: {sentiment})")
+        
+        if line_parts:
+            comments_data_lines.append(" ".join(line_parts))
+    
+    comments_data = "\n".join(comments_data_lines)
+    
+    # プロンプトを生成
+    prompt = get_executive_summary_prompt(comments_data)
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_completion_tokens=2000,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7  # 創造性を重視
+        )
+        
+        raw_response = response.choices[0].message.content
+        
+        # レスポンスを3つのセクションにパース
+        highlight = ""
+        lowlight = ""
+        improvement = ""
+        
+        # セクションごとに分割
+        sections = re.split(r'##\s*(1\.\s*)?Highlight|##\s*(2\.\s*)?Lowlight|##\s*(3\.\s*)?改善ポイント', raw_response, flags=re.IGNORECASE)
+        
+        # セクションを抽出
+        response_lower = raw_response.lower()
+        highlight_start = max(
+            response_lower.find("## 1. highlight"),
+            response_lower.find("## highlight"),
+            response_lower.find("highlight")
+        )
+        lowlight_start = max(
+            response_lower.find("## 2. lowlight"),
+            response_lower.find("## lowlight"),
+            response_lower.find("lowlight")
+        )
+        improvement_start = max(
+            response_lower.find("## 3. 改善ポイント"),
+            response_lower.find("## 改善ポイント"),
+            response_lower.find("改善ポイント")
+        )
+        
+        if highlight_start >= 0 and lowlight_start > highlight_start:
+            highlight = raw_response[highlight_start:lowlight_start].strip()
+            # "## 1. Highlight" や "## Highlight" などの見出しを削除
+            highlight = re.sub(r'^##\s*\d*\.?\s*Highlight\s*:?\s*\n?', '', highlight, flags=re.IGNORECASE).strip()
+        
+        if lowlight_start >= 0 and improvement_start > lowlight_start:
+            lowlight = raw_response[lowlight_start:improvement_start].strip()
+            lowlight = re.sub(r'^##\s*\d*\.?\s*Lowlight\s*:?\s*\n?', '', lowlight, flags=re.IGNORECASE).strip()
+        
+        if improvement_start >= 0:
+            improvement = raw_response[improvement_start:].strip()
+            improvement = re.sub(r'^##\s*\d*\.?\s*改善ポイント\s*:?\s*\n?', '', improvement, flags=re.IGNORECASE).strip()
+        
+        # パースが失敗した場合は、生のレスポンスを3分割
+        if not highlight or not lowlight or not improvement:
+            parts = re.split(r'\n\n+', raw_response, maxsplit=2)
+            if len(parts) >= 3:
+                highlight = parts[0].strip()
+                lowlight = parts[1].strip()
+                improvement = parts[2].strip()
+            elif len(parts) == 2:
+                highlight = parts[0].strip()
+                lowlight = parts[1].strip()
+            else:
+                # すべて失敗した場合は生のレスポンスをhighlightに
+                highlight = raw_response.strip()
+        
+        return {
+            "highlight": highlight,
+            "lowlight": lowlight,
+            "improvement": improvement
+        }
+        
+    except Exception as e:
+        import sys
+        print(f"エグゼクティブサマリ生成エラー: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        raise Exception(f"エグゼクティブサマリの生成に失敗しました: {str(e)}")
 

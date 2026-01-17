@@ -213,7 +213,32 @@ def main():
         index=0
     )
 
+    # 企業選択（サイドバー）
+    st.sidebar.title("企業選択")
+    company_names = list(COMPANIES.keys())
+    if "selected_company" not in st.session_state:
+        st.session_state.selected_company = DEFAULT_COMPANY
+    
+    selected_company = st.sidebar.selectbox(
+        "企業を選択してください",
+        company_names,
+        index=company_names.index(st.session_state.selected_company) if st.session_state.selected_company in company_names else 0
+    )
+    
+    # 企業選択が変更された場合、セッションステートを更新
+    if selected_company != st.session_state.selected_company:
+        st.session_state.selected_company = selected_company
+        # 分析結果をクリア（企業が変わったら再分析が必要）
+        if "analysis_complete" in st.session_state:
+            st.session_state.analysis_complete = False
+        if "processed_data" in st.session_state:
+            st.session_state.processed_data = None
+    
+    # 現在の企業設定を取得
+    company_config = get_company_config(selected_company)
+
     st.title("ライブ配信チャット分析ツール")
+    st.markdown(f"**企業名**: {company_config['name']}")
 
     # APIキーが設定されていない場合の警告
     if not has_api_key:
@@ -235,8 +260,6 @@ def show_comment_analysis_page():
     """コメント分析機能のページを表示"""
     
     # セッションステートの初期化
-    if "selected_company" not in st.session_state:
-        st.session_state.selected_company = DEFAULT_COMPANY
     if "processed_data" not in st.session_state:
         st.session_state.processed_data = None
     if "analysis_complete" not in st.session_state:
@@ -328,33 +351,9 @@ def show_comment_analysis_page():
             st.error(f"エラー: {str(e)}")
             return
     
-    # 企業選択（CSVアップロードの後）
-    if st.session_state.processed_data is not None:
-        st.header("2. 企業選択")
-        company_names = list(COMPANIES.keys())
-        if "selected_company" not in st.session_state:
-            st.session_state.selected_company = DEFAULT_COMPANY
-        
-        selected_company = st.selectbox(
-            "企業を選択してください",
-            company_names,
-            index=company_names.index(st.session_state.selected_company) if st.session_state.selected_company in company_names else 0
-        )
-        
-        # 企業選択が変更された場合、セッションステートを更新
-        if selected_company != st.session_state.selected_company:
-            st.session_state.selected_company = selected_company
-            # 分析結果をクリア（企業が変わったら再分析が必要）
-            if "analysis_complete" in st.session_state:
-                st.session_state.analysis_complete = False
-        
-        # 現在の企業設定を取得
-        company_config = get_company_config(selected_company)
-        st.info(f"**選択中の企業**: {company_config['name']}")
-    
     # AI分析
     if st.session_state.processed_data is not None and not st.session_state.analysis_complete:
-        st.header("3. AI分析")
+        st.header("2. AI分析")
         
         df = st.session_state.processed_data.copy()
         
@@ -524,7 +523,8 @@ def show_comment_analysis_page():
             
             try:
                 # AI分析実行（統合プロンプト使用：50%高速化）
-                analysis_result = analyze_all_comments(df, update_progress, save_intermediate_results, check_cancel)
+                with st.spinner("AI分析を実行中です。しばらくお待ちください..."):
+                    analysis_result = analyze_all_comments(df, update_progress, save_intermediate_results, check_cancel)
                 
                 # 分析結果からDataFrameとトークン使用量情報を取得
                 if isinstance(analysis_result, dict):
@@ -626,6 +626,33 @@ def show_comment_analysis_page():
                 status_text.text("✓ 分析が完了しました！")
                 st.success("分析が完了しました！")
                 
+                # 通知音を再生
+                st.components.v1.html("""
+                <script>
+                // ビープ音を再生する関数
+                function playBeep() {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800; // 周波数（Hz）
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.5);
+                }
+                
+                // 音を再生
+                playBeep();
+                </script>
+                """, height=0)
+                
                 # 分析結果のプレビュー
                 st.subheader("分析結果プレビュー")
                 st.dataframe(analyzed_df.head(10), use_container_width=True)
@@ -659,7 +686,7 @@ def show_comment_analysis_page():
     
     # データ出力
     if st.session_state.analysis_complete and st.session_state.processed_data is not None:
-        st.header("4. データ出力")
+        st.header("3. データ出力")
         
         # 統計情報をセッションステートから取得（なければ計算）
         if st.session_state.stats_data is None:
@@ -688,8 +715,11 @@ def show_comment_analysis_page():
         
         with stat_col2:
             if len(question_df) > 0:
-                st.metric("質問コメント件数", question_stats["total_questions"])
-                st.metric("質問回答率", f"{question_stats['answer_rate']:.1f}%")
+                # 質問統計情報が計算されている場合のみ表示
+                if question_stats is not None and "total_questions" in question_stats:
+                    st.metric("質問コメント件数", question_stats["total_questions"])
+                else:
+                    st.metric("質問コメント件数", len(question_df))
             else:
                 st.info("質問コメントはありませんでした。")
             
@@ -746,28 +776,25 @@ def show_comment_analysis_page():
                 
                 # 質問CSV（質問コメントのみ）を再生成
                 if len(question_df) > 0:
-                    # guest_idを削除し、列の順序を調整（A列: 回答状況、B列: 配信時間）
+                    # guest_idを削除し、配信時間を一番左列に移動
                     question_csv_df = question_df.copy()
                     
-                    # 回答方法がnanの場合の処理
+                    # 回答状況列と回答方法列を削除（もし存在する場合）
+                    if '回答状況' in question_csv_df.columns:
+                        question_csv_df = question_csv_df.drop(columns=['回答状況'])
                     if '回答方法' in question_csv_df.columns:
-                        nan_mask = question_csv_df['回答方法'].isna() | (question_csv_df['回答方法'].astype(str).str.strip() == 'nan')
-                        if '回答状況' in question_csv_df.columns:
-                            question_csv_df.loc[nan_mask, '回答状況'] = False
-                        question_csv_df.loc[nan_mask, '回答方法'] = ''
+                        question_csv_df = question_csv_df.drop(columns=['回答方法'])
                     
                     if 'guest_id' in question_csv_df.columns:
                         question_csv_df = question_csv_df.drop(columns=['guest_id'])
                     if 'inserted_at' in question_csv_df.columns:
                         question_csv_df = question_csv_df.rename(columns={'inserted_at': '配信時間'})
-                    # 列の順序: 回答状況、配信時間、その他
-                    if '回答状況' in question_csv_df.columns and '配信時間' in question_csv_df.columns:
-                        other_cols = [col for col in question_csv_df.columns if col not in ['回答状況', '配信時間']]
-                        cols = ['回答状況', '配信時間'] + other_cols
+                        # 配信時間を一番左列に移動
+                        cols = ['配信時間'] + [col for col in question_csv_df.columns if col != '配信時間']
                         question_csv_df = question_csv_df[cols]
                     
-                    # 統計情報を追加
-                    csv_question = add_statistics_to_csv(question_csv_df, stats, is_question=True, question_stats=question_stats)
+                    # 統計情報を追加（質問統計情報は計算しない）
+                    csv_question = add_statistics_to_csv(question_csv_df, stats, is_question=True, question_stats=None)
                     st.session_state.csv_question_data = csv_question.encode('utf-8-sig')
                     st.session_state.csv_question_filename = f"{file_title}_質問.csv"
             except Exception as e:
